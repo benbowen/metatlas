@@ -3,4 +3,4 @@
 
  <p>This notebook will help you understand the basic capabilities of the programmatic access using Metabolite Atlas.</p>
 
- [Read the notebook online here!](http://nbviewer.ipython.org/github/benbowen/metatlas/Chapter1/Is_My_Data_Good.ipynb)
+ [Read the notebook online here!](http://nbviewer.ipython.org/github/benbowen/metatlas/blob/master/Chapter1/Is_My_Data_Good.ipynb)
