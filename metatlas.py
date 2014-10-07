@@ -6,6 +6,36 @@ import metatlas
 from scipy.optimize import leastsq
 from math import exp
 
+def getEICForCompounds(compound,myArray,files_I_want,rtTol,client):
+	if isinstance(files_I_want,int):
+		myList = str(files_I_want)
+	else:
+		myList = ','.join(map(str, files_I_want))
+		
+
+	mz = float(compound[u'mz'])
+	mzTol = float(compound[u'mz_threshold'])
+	mzMin = mz - mz*mzTol/1.0e6
+	mzMax = mz + mz*mzTol/1.0e6
+	rtMin = float(compound[u'rt_min'])-rtTol
+	rtMax = float(compound[u'rt_max'])+rtTol
+	rtPeak = float(compound[u'rt_peak'])
+
+	payload = {'L':1,'P':1,'arrayname':myArray,'fileidlist':myList,
+	          'max_mz':mzMax,'min_mz':mzMin,
+	          'min_rt':rtMin,'max_rt':rtMax,
+	          'nsteps':20000,'queryType':'XICofFile_mf'}
+	url = 'https://metatlas.nersc.gov/api/run'
+	r = client.get(url,params=payload)
+	data = np.asarray(json.loads(r.content))
+	return data
+	# for myFile in files_I_want:
+	#     x1 = data[:,0][(data[:,2]==myFile)]
+	#     y1 = data[:,1][(data[:,2]==myFile)]
+	#     idx = np.argsort(x1)
+	#     plt.plot(x1[idx],y1[idx])
+	# plt.xlabel('Time (min)')
+	# plt.ylabel('TIC Intensity (au)')
 
 def getEICForCompound(compound,myArray,runId,rtTol,client):
 	mz = float(compound[u'mz'])
@@ -39,8 +69,8 @@ def getEICForCompound(compound,myArray,runId,rtTol,client):
 
 def createChromatogramPlots(data,compound,fitResult,ax):
 	ax.plot(data['xdata'],data['ydata']*data['iMax'],'k-',data['xdata'], fitfunc(fitResult, data['xdata'])*data['iMax'],'r-',linewidth=2.0)
-	ax.axvline(compound[u'rt_min'],linewidth=2, color='k') #original rtMin
-	ax.axvline(compound[u'rt_max'],linewidth=2, color='k') #original rtMax
+	ax.axvline(float(compound[u'rt_min']),linewidth=2, color='k') #original rtMin
+	ax.axvline(float(compound[u'rt_max']),linewidth=2, color='k') #original rtMax
 	#     ax.axvline(x=compound[u'rt_peak'],linewidth=2, color='b') #original rtPeak
 	ax.axvline(x=fitResult[1],linewidth=2, color='r') #new rtPeak
 	ax.axvspan(fitResult[1]-fitResult[3]*2, fitResult[1]+fitResult[2]*2, facecolor='c', alpha=0.5) #new rtBounds

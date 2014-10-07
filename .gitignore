@@ -1,0 +1,4 @@
+# IGNORE PYTHON CHECKPOINTS
+*.ipynb_checkpoints
+# IGNORE THE PASSWORD FILE
+userinfo.txt
