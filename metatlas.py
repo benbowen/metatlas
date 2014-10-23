@@ -11,8 +11,6 @@ def getEICForCompounds(compound,myArray,files_I_want,rtTol,client):
 		myList = str(files_I_want)
 	else:
 		myList = ','.join(map(str, files_I_want))
-		
-
 	mz = float(compound[u'mz'])
 	mzTol = float(compound[u'mz_threshold'])
 	mzMin = mz - mz*mzTol/1.0e6
