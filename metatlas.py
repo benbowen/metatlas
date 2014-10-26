@@ -178,6 +178,34 @@ def peakdet(v, delta, x = None):
  
     return array(maxtab), array(mintab)
 
+def splitFileListAcrossTwoDimensions(myFiles):
+    import re
+    fileInfo = {}
+    fileInfo['date']=[]
+    fileInfo['polarity']=[]
+    fileInfo['conc']=[] #this is the concentration of material
+    fileInfo['temp']=[] #this is the temperature of the inubation
+    fileInfo['group']=[] #this is a unique class of time by group
+
+    for file in myFiles:
+        oldName = file
+        file = file[:-5]
+        file = re.sub('blank\d','blank_0',file)
+        file = re.sub('RT','23',file) #substitute the room temperature with 23 for consistency with naming
+        fileInfo['polarity'].append(file[-3:])
+        file = file[:-4]
+        fileInfo['date'].append(file[:6])
+        file = file[7:]
+        temperature = re.findall(('_[0-9]+$'),file)[0]
+        fileInfo['temp'].append(temperature.replace('_',''))
+        file = re.sub(temperature+'$','',file)
+        file = file[:-2] # strip off the _replicate
+        file = file.replace('_','.')
+        file = file.replace('bla','blank')
+        fileInfo['conc'].append(file)
+        fileInfo['group'].append(fileInfo['conc'][-1]+'@'+fileInfo['temp'][-1])
+    return fileInfo
+
 def groupFilesAcrossTwoDimensions(fileInfo):
 # This block is an example to teach people how to use regular expressions to put files into groups according to their filename
 # by naming your files in a consistent manner, it can make analysis of N-way comparisons much quicker
