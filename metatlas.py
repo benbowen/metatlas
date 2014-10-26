@@ -102,8 +102,7 @@ def errfunc(p,x,y,rtPeak):
 	else:
 		return np.multiply((y-fitfunc(p,x)),np.exp(-0.5*((x-rtPeak)/0.1)**2))
 
-import sys
-from numpy import NaN, Inf, arange, isscalar, asarray, array
+
  
 def peakdet(v, delta, x = None):
     """
@@ -130,6 +129,9 @@ def peakdet(v, delta, x = None):
     % This function is released to the public domain; Any use is allowed.
     
     """
+	
+    import sys
+    from numpy import NaN, Inf, arange, isscalar, asarray, array
     maxtab = []
     mintab = []
        
@@ -176,3 +178,56 @@ def peakdet(v, delta, x = None):
  
     return array(maxtab), array(mintab)
 
+def groupFilesAcrossTwoDimensions(fileInfo):
+# This block is an example to teach people how to use regular expressions to put files into groups according to their filename
+# by naming your files in a consistent manner, it can make analysis of N-way comparisons much quicker
+	import re
+	fileInfo['date']=[]
+	fileInfo['polarity']=[]
+	fileInfo['conc']=[] #this is the concentration of material
+	fileInfo['temp']=[] #this is the temperature of the inubation
+	fileInfo['group']=[] #this is a unique class of time by group
+
+	for file in fileInfo['name']:
+	    oldName = file
+	    file = file[:-5]
+	    file = re.sub('blank\d','blank_0',file)
+	    file = re.sub('RT','23',file) #substitute the room temperature with 23 for consistency with naming
+	    fileInfo['polarity'].append(file[-3:])
+	    file = file[:-4]
+	    fileInfo['date'].append(file[:6])
+	    file = file[7:]
+	    temperature = re.findall(('_[0-9]+$'),file)[0]
+	    fileInfo['temp'].append(temperature.replace('_',''))
+	    file = re.sub(temperature+'$','',file)
+	    file = file[:-2] # strip off the _replicate
+	    file = file.replace('_','.')
+	    file = file.replace('bla','blank')
+	    fileInfo['conc'].append(file)
+	    fileInfo['group'].append(fileInfo['conc'][-1]+'@'+fileInfo['temp'][-1])
+
+	fileInfo['pos_groups']={}
+	myGroups = np.unique(fileInfo['group'])
+	# # print fileInfo['group']
+	for group in myGroups:
+	    indices = [i for i, elem in enumerate(fileInfo['group']) if group == elem]
+	    fileInfo['pos_groups'][group] = []
+	    for i in indices:
+	        if fileInfo['polarity'][i] == 'pos':
+	            fileInfo['pos_groups'][group].append(fileInfo['fid'][i])
+	    # print fileInfo['pos_groups'][group]
+	# print fileInfo['pos_groups'].keys()
+
+	fileInfo['neg_groups']={}
+	myGroups = np.unique(fileInfo['group'])
+	# # print fileInfo['group']
+	for group in myGroups:
+	    indices = [i for i, elem in enumerate(fileInfo['group']) if group == elem]
+	    fileInfo['neg_groups'][group] = []
+	    for i in indices:
+	        if fileInfo['polarity'][i] == 'neg':
+	            fileInfo['neg_groups'][group].append(fileInfo['fid'][i])
+	    # print group
+	    # print fileInfo['neg_groups'][group]
+	# print fileInfo['neg_groups'].keys()
+	return fileInfo
