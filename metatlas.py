@@ -6,7 +6,38 @@ import metatlas
 from scipy.optimize import leastsq
 from math import exp
 
-def getEICForCompounds(compound,myArray,files_I_want,rtTol,client):
+def shareExperiments(allUsers,allPerms,client):
+    for aUser in allUsers:
+        payload = {"user":aUser,"perms":allPerms}
+        sendData=json.dumps(payload)
+        # print sendData
+        url = 'https://metatlas.nersc.gov/api/experiment/%s/share/' % myExperimentID
+        # print url
+        r = client.post(url, data=sendData)
+        print r.content
+    
+def listMyExperiments(client):
+    url = 'https://metatlas.nersc.gov/api/experiment'
+    r = client.get(url)
+    experiments = json.loads(r.content)
+    return experiments
+
+def authenticateUser(userFile):
+    authURL = 'https://metatlas.nersc.gov/client/login/'
+    file = open(userFile, 'r')
+    userID = file.readline()[:-1]
+    userPassword = file.readline()[:-1]
+    file.close()
+
+    client = requests.Session()
+    # Retrieve the CSRF token first
+    client.get(authURL)  # sets cookie
+    csrftoken = client.cookies['csrftoken']
+    login_data = dict(username=userID, password=userPassword, csrfmiddlewaretoken=csrftoken, next='/')
+    r = client.post(authURL, data=login_data, headers=dict(Referer=authURL))
+    return client
+
+def getEICForCompounds(compound,myArray,files_I_want,rtTol,client,polarity):
 	if isinstance(files_I_want,int):
 		myList = str(files_I_want)
 	else:
@@ -19,7 +50,7 @@ def getEICForCompounds(compound,myArray,files_I_want,rtTol,client):
 	rtMax = float(compound[u'rt_max'])+rtTol
 	rtPeak = float(compound[u'rt_peak'])
 
-	payload = {'L':1,'P':1,'arrayname':myArray,'fileidlist':myList,
+	payload = {'L':1,'P':polarity,'arrayname':myArray,'fileidlist':myList,
 	          'max_mz':mzMax,'min_mz':mzMin,
 	          'min_rt':rtMin,'max_rt':rtMax,
 	          'nsteps':20000,'queryType':'XICofFile_mf'}
@@ -35,7 +66,8 @@ def getEICForCompounds(compound,myArray,files_I_want,rtTol,client):
 	# plt.xlabel('Time (min)')
 	# plt.ylabel('TIC Intensity (au)')
 
-def getEICForCompound(compound,myArray,runId,rtTol,client):
+def getEICForCompound(compound,myArray,runId,rtTol,client,polarity):
+    #polarity is 1 for pos and 0 for neg
 	mz = float(compound[u'mz'])
 	mzTol = float(compound[u'mz_threshold'])
 	mzMin = mz - mz*mzTol/1.0e6
@@ -43,7 +75,7 @@ def getEICForCompound(compound,myArray,runId,rtTol,client):
 	rtMin = float(compound[u'rt_min'])
 	rtMax = float(compound[u'rt_max'])
 	rtPeak = float(compound[u'rt_peak'])
-	payload = {'L':1,'P':1,'arrayname':myArray,'fileid':runId,
+	payload = {'L':1,'P':polarity,'arrayname':myArray,'fileid':runId,
 	'max_mz':mzMax,'min_mz':mzMin,
 	'nsteps':10000,'queryType':'XICofFile'}
 	url = 'https://metatlas.nersc.gov/api/run'
