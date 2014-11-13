@@ -6,7 +6,7 @@ import metatlas
 from scipy.optimize import leastsq
 from math import exp
 
-def shareExperiments(allUsers,allPerms,client):
+def shareExperiments(allUsers,allPerms,client, myExperimentID):
     for aUser in allUsers:
         payload = {"user":aUser,"perms":allPerms}
         sendData=json.dumps(payload)
@@ -14,7 +14,8 @@ def shareExperiments(allUsers,allPerms,client):
         url = 'https://metatlas.nersc.gov/api/experiment/%s/share/' % myExperimentID
         # print url
         r = client.post(url, data=sendData)
-        print r.content
+        return r
+        # print r.content
     
 def listMyExperiments(client):
     url = 'https://metatlas.nersc.gov/api/experiment'
