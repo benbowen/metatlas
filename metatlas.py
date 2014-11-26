@@ -130,10 +130,42 @@ def fitfunc(p,x):
 	return a
 
 def errfunc(p,x,y,rtPeak):
-	if (abs(p[2]) > 0.3) or (abs(p[3]) > 0.3) or (abs(p[2]) < 0.01) or (abs(p[3]) < 0.01):
+	if (abs(p[2]) > 0.5) or (abs(p[3]) > 0.5) or (abs(p[2]) < 0.01) or (abs(p[3]) < 0.01):
 		return 1e100
 	else:
-		return np.multiply((y-fitfunc(p,x)),np.exp(-0.5*((x-rtPeak)/0.1)**2))
+		# return (y-fitfunc(p,x))**2
+		return np.multiply((y-fitfunc(p,x))**2,np.exp(-0.5*((x-rtPeak)/0.1)**2))
+
+#!/usr/bin/env python
+
+'''Implementation of Sliding Window Minimum Algorithm. This module contains
+one function `sliding_window_minimum`.
+See http://people.cs.uct.ac.za/~ksmith/articles/sliding_window_minimum.html
+for a longer explanation of the algorithm.'''
+
+from collections import deque
+
+def sliding_window_minimum(k, li):
+    '''
+    A iterator which takes the size of the window, `k`, and an iterable,
+    `li`. Then returns an iterator such that the ith element yielded is equal
+    to min(list(li)[max(i - k + 1, 0):i+1]).
+    Each yield takes amortized O(1) time, and overall the generator takes O(k)
+    space.
+    __author__ = "Keegan Carruthers-Smith"
+	__email__ = "keegan.csmith@gmail.com"
+	__license__ = "MIT"
+    '''
+
+    window = deque()
+    for i, x in enumerate(li):
+        while window and window[-1][0] >= x:
+            window.pop()
+        window.append((x, i))
+        while window[0][1] <= i - k:
+            window.popleft()
+        yield window[0][0]
+
 
 
  
