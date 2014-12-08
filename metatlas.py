@@ -6,6 +6,43 @@ import metatlas
 from scipy.optimize import leastsq
 from math import exp
 
+def export_peakData_to_spreadsheet(filename,export_fileIds,fileInfo,data,dictData):
+	import csv
+	export_filenames = []
+	for i,myFile in enumerate(export_fileIds):
+	    for j,fid in enumerate(fileInfo['fid']):
+	        if fid == myFile:
+	            export_filenames.append(fileInfo['name'][j])
+	fid = open(filename,'wb')
+	fid.write('%s\t' % 'compound')
+	for filename in export_filenames:
+	    fid.write('%s\t' % filename)
+	fid.write('\n')
+	for i,datum in enumerate(data):
+	    fid.write('%s\t' % dictData[u'compounds'][i]['name'])
+	    mz = float(dictData[u'compounds'][i][u'mz'])
+	    mzTol = float(dictData[u'compounds'][i][u'mz_threshold'])
+	    mzMin = mz - mz*mzTol/1.0e6
+	    mzMax = mz + mz*mzTol/1.0e6
+	    rtMin = float(dictData[u'compounds'][i][u'rt_min'])
+	    rtMax = float(dictData[u'compounds'][i][u'rt_max'])
+	    for j,myFile in enumerate(export_fileIds):
+	#         try:
+	        idx = np.logical_and( datum[:,2]==myFile, datum[:,0]>=rtMin, datum[:,0]<=rtMax )
+	        if np.sum(idx)>0:
+	            x1 = datum[:,0][idx]
+	            y1 = datum[:,1][idx]
+	            myname = dictData[u'compounds'][i]['name']
+	            if myname.startswith('ist'):
+	                y1 = y1[:]
+	            else:    
+	                y1 = y1[:] / fileInfo['normalization_factor'][j]
+	            fid.write('%5.2f\t' % np.sum(y1))
+	        else:
+	            fid.write('%5.2f\t' % 0)
+	    fid.write('\n')
+	fid.close()
+
 def shareExperiments(allUsers,allPerms,client, myExperimentID):
     for aUser in allUsers:
         payload = {"user":aUser,"perms":allPerms}
@@ -37,6 +74,28 @@ def authenticateUser(userFile):
     login_data = dict(username=userID, password=userPassword, csrfmiddlewaretoken=csrftoken, next='/')
     r = client.post(authURL, data=login_data, headers=dict(Referer=authURL))
     return client
+
+def getEICForCompounds_oneLighter(compound,myArray,files_I_want,rtTol,client,polarity):
+	if isinstance(files_I_want,int):
+		myList = str(files_I_want)
+	else:
+		myList = ','.join(map(str, files_I_want))
+	mz = float(compound[u'mz'])
+	mzTol = float(compound[u'mz_threshold'])
+	mzMin = mz - mz*mzTol/1.0e6 - 1.003355
+	mzMax = mz + mz*mzTol/1.0e6 - 1.003355
+	rtMin = float(compound[u'rt_min'])-rtTol
+	rtMax = float(compound[u'rt_max'])+rtTol
+	rtPeak = float(compound[u'rt_peak'])
+
+	payload = {'L':1,'P':polarity,'arrayname':myArray,'fileidlist':myList,
+	          'max_mz':mzMax,'min_mz':mzMin,
+	          'min_rt':rtMin,'max_rt':rtMax,
+	          'nsteps':20000,'queryType':'XICofFile_mf'}
+	url = 'https://metatlas.nersc.gov/api/run'
+	r = client.get(url,params=payload)
+	data = np.asarray(json.loads(r.content))
+	return data
 
 def getEICForCompounds(compound,myArray,files_I_want,rtTol,client,polarity):
 	if isinstance(files_I_want,int):
@@ -109,10 +168,24 @@ def createChromatogramPlots(data,compound,fitResult,ax):
 	ax.set_ylabel('Intensity (au)')
 	ax.set_title(compound[u'name'])
 
+def createChromatogramPlots_dataOnly(data,compound,ax):
+	ax.plot(data['xdata'],data['ydata']*data['iMax'],'k-',linewidth=2.0)
+	ax.axvline(float(compound[u'rt_min']),linewidth=2, color='r',alpha=0.5) #original rtMin
+	ax.axvline(float(compound[u'rt_max']),linewidth=2, color='r',alpha=0.5) #original rtMax
+	ax.axvline(float(compound[u'rt_peak']),linewidth=2, color='g',alpha=0.5) #original rtPeak
+	#     ax.axvline(x=compound[u'rt_peak'],linewidth=2, color='b') #original rtPeak
+	# ax.axvline(x=fitResult[1],linewidth=2, color='r') #new rtPeak
+	# ax.axvspan(fitResult[1]-fitResult[3]*2, fitResult[1]+fitResult[2]*2, facecolor='c', alpha=0.5) #new rtBounds
+	ax.set_xlabel('Time (min)')
+	ax.set_ylabel('Intensity (au)')
+	ax.set_title(compound[u'name'])
+
 def fitACompound(compound,data):
 	rtPeak = float(compound[u'rt_peak'])
+	rtMin = float(compound[u'rt_min'])
+	rtMax = float(compound[u'rt_max'])
 	init  = [1.0, rtPeak, 0.1,0.1]
-	out   = leastsq( errfunc, init, args=(data['xdata'], data['ydata'], rtPeak))
+	out   = leastsq( errfunc, init, args=(data['xdata'], data['ydata'], rtPeak, rtMin, rtMax))
 	fitResult = out[0]
 	fitResult[2] = abs(fitResult[2])
 	fitResult[3] = abs(fitResult[3])
@@ -129,12 +202,13 @@ def fitfunc(p,x):
 		a[idx2]=p[0]*np.exp(-0.5*((x[idx2]-p[1])/p[3])**2)
 	return a
 
-def errfunc(p,x,y,rtPeak):
-	if (abs(p[2]) > 0.5) or (abs(p[3]) > 0.5) or (abs(p[2]) < 0.01) or (abs(p[3]) < 0.01):
+def errfunc(p,x,y,rtPeak, rtMin, rtMax):
+	if (abs(p[2]) > 1.5) or (abs(p[3]) > 1.5) or (abs(p[2]) < 0.001) or (abs(p[3]) < 0.001) or (p[1] > rtMax) or (p[1] < rtMin):
 		return 1e100
 	else:
 		# return (y-fitfunc(p,x))**2
-		return np.multiply((y-fitfunc(p,x))**2,np.exp(-0.5*((x-rtPeak)/0.1)**2))
+		# idx = x > rtMin and x < rtMax
+		return np.multiply((y-fitfunc(p,x))**2,np.exp(-0.5*((x-rtPeak)/0.021)**2))
 
 #!/usr/bin/env python
 
