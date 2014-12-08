@@ -32,6 +32,7 @@ def export_peakData_to_spreadsheet(filename,export_fileIds,fileInfo,data,dictDat
 	        if np.sum(idx)>0:
 	            x1 = datum[:,0][idx]
 	            y1 = datum[:,1][idx]
+	            # y1 = y1 - np.min(y1)
 	            myname = dictData[u'compounds'][i]['name']
 	            if myname.startswith('ist'):
 	                y1 = y1[:]
