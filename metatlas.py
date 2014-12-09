@@ -7,42 +7,44 @@ from scipy.optimize import leastsq
 from math import exp
 
 def export_peakData_to_spreadsheet(filename,export_fileIds,fileInfo,data,dictData):
-	import csv
-	export_filenames = []
-	for i,myFile in enumerate(export_fileIds):
-	    for j,fid in enumerate(fileInfo['fid']):
-	        if fid == myFile:
-	            export_filenames.append(fileInfo['name'][j])
-	fid = open(filename,'wb')
-	fid.write('%s\t' % 'compound')
-	for filename in export_filenames:
-	    fid.write('%s\t' % filename)
-	fid.write('\n')
-	for i,datum in enumerate(data):
-	    fid.write('%s\t' % dictData[u'compounds'][i]['name'])
-	    mz = float(dictData[u'compounds'][i][u'mz'])
-	    mzTol = float(dictData[u'compounds'][i][u'mz_threshold'])
-	    mzMin = mz - mz*mzTol/1.0e6
-	    mzMax = mz + mz*mzTol/1.0e6
-	    rtMin = float(dictData[u'compounds'][i][u'rt_min'])
-	    rtMax = float(dictData[u'compounds'][i][u'rt_max'])
-	    for j,myFile in enumerate(export_fileIds):
-	#         try:
-	        idx = np.logical_and( datum[:,2]==myFile, datum[:,0]>=rtMin, datum[:,0]<=rtMax )
-	        if np.sum(idx)>0:
-	            x1 = datum[:,0][idx]
-	            y1 = datum[:,1][idx]
-	            # y1 = y1 - np.min(y1)
-	            myname = dictData[u'compounds'][i]['name']
-	            if myname.startswith('ist'):
-	                y1 = y1[:]
-	            else:    
-	                y1 = y1[:] / fileInfo['normalization_factor'][j]
-	            fid.write('%5.2f\t' % np.sum(y1))
-	        else:
-	            fid.write('%5.2f\t' % 0)
-	    fid.write('\n')
-	fid.close()
+    import csv
+    export_filenames = []
+    for i,myFile in enumerate(export_fileIds):
+        for j,fid in enumerate(fileInfo['fid']):
+            if fid == myFile:
+                export_filenames.append(fileInfo['name'][j])
+    fid = open(filename,'wb')
+    fid.write('%s\t' % 'compound')
+    for filename in export_filenames:
+        fid.write('%s\t' % filename)
+    fid.write('\n')
+    for i,datum in enumerate(data):
+        fid.write('%s\t' % dictData[u'compounds'][i]['name'])
+        mz = float(dictData[u'compounds'][i][u'mz'])
+        mzTol = float(dictData[u'compounds'][i][u'mz_threshold'])
+        mzMin = mz - mz*mzTol/1.0e6
+        mzMax = mz + mz*mzTol/1.0e6
+        rtMin = float(dictData[u'compounds'][i][u'rt_min'])
+        rtMax = float(dictData[u'compounds'][i][u'rt_max'])
+        for j,myFile in enumerate(export_fileIds):
+            if datum.size>0:
+                idx = np.logical_and( datum[:,2]==myFile, datum[:,0]>=rtMin, datum[:,0]<=rtMax )
+                if np.sum(idx)>0:
+                    x1 = datum[:,0][idx]
+                    y1 = datum[:,1][idx]
+                    # y1 = y1 - np.min(y1)
+                    myname = dictData[u'compounds'][i]['name']
+                    if myname.startswith('ist'):
+                        y1 = y1[:]
+                    else:    
+                        y1 = y1[:] / fileInfo['normalization_factor'][j]
+                    fid.write('%5.2f\t' % np.sum(y1))
+                else:
+                    fid.write('%5.2f\t' % 0)
+            else:
+                fid.write('%5.2f\t' % 0)
+        fid.write('\n')
+    fid.close()
 
 def shareExperiments(allUsers,allPerms,client, myExperimentID):
     for aUser in allUsers:
@@ -77,139 +79,142 @@ def authenticateUser(userFile):
     return client
 
 def getEICForCompounds_oneLighter(compound,myArray,files_I_want,rtTol,client,polarity):
-	if isinstance(files_I_want,int):
-		myList = str(files_I_want)
-	else:
-		myList = ','.join(map(str, files_I_want))
-	mz = float(compound[u'mz'])
-	mzTol = float(compound[u'mz_threshold'])
-	mzMin = mz - mz*mzTol/1.0e6 - 1.003355
-	mzMax = mz + mz*mzTol/1.0e6 - 1.003355
-	rtMin = float(compound[u'rt_min'])-rtTol
-	rtMax = float(compound[u'rt_max'])+rtTol
-	rtPeak = float(compound[u'rt_peak'])
+    if isinstance(files_I_want,int):
+        myList = str(files_I_want)
+    else:
+        myList = ','.join(map(str, files_I_want))
+    mz = float(compound[u'mz'])
+    mzTol = float(compound[u'mz_threshold'])
+    mzMin = mz - mz*mzTol/1.0e6 - 1.003355
+    mzMax = mz + mz*mzTol/1.0e6 - 1.003355
+    rtMin = float(compound[u'rt_min'])-rtTol
+    rtMax = float(compound[u'rt_max'])+rtTol
+    rtPeak = float(compound[u'rt_peak'])
 
-	payload = {'L':1,'P':polarity,'arrayname':myArray,'fileidlist':myList,
-	          'max_mz':mzMax,'min_mz':mzMin,
-	          'min_rt':rtMin,'max_rt':rtMax,
-	          'nsteps':20000,'queryType':'XICofFile_mf'}
-	url = 'https://metatlas.nersc.gov/api/run'
-	r = client.get(url,params=payload)
-	data = np.asarray(json.loads(r.content))
-	return data
+    payload = {'L':1,'P':polarity,'arrayname':myArray,'fileidlist':myList,
+              'max_mz':mzMax,'min_mz':mzMin,
+              'min_rt':rtMin,'max_rt':rtMax,
+              'nsteps':20000,'queryType':'XICofFile_mf'}
+    url = 'https://metatlas.nersc.gov/api/run'
+    r = client.get(url,params=payload)
+    data = np.asarray(json.loads(r.content))
+    return data
 
 def getEICForCompounds(compound,myArray,files_I_want,rtTol,client,polarity):
-	if isinstance(files_I_want,int):
-		myList = str(files_I_want)
-	else:
-		myList = ','.join(map(str, files_I_want))
-	mz = float(compound[u'mz'])
-	mzTol = float(compound[u'mz_threshold'])
-	mzMin = mz - mz*mzTol/1.0e6
-	mzMax = mz + mz*mzTol/1.0e6
-	rtMin = float(compound[u'rt_min'])-rtTol
-	rtMax = float(compound[u'rt_max'])+rtTol
-	rtPeak = float(compound[u'rt_peak'])
+    if isinstance(files_I_want,int):
+        myList = str(files_I_want)
+    else:
+        myList = ','.join(map(str, files_I_want))
+    mz = float(compound[u'mz'])
+    mzTol = float(compound[u'mz_threshold'])
+    mzMin = mz - mz*mzTol/1.0e6
+    mzMax = mz + mz*mzTol/1.0e6
+    rtMin = float(compound[u'rt_min'])-rtTol
+    rtMax = float(compound[u'rt_max'])+rtTol
+    rtPeak = float(compound[u'rt_peak'])
 
-	payload = {'L':1,'P':polarity,'arrayname':myArray,'fileidlist':myList,
-	          'max_mz':mzMax,'min_mz':mzMin,
-	          'min_rt':rtMin,'max_rt':rtMax,
-	          'nsteps':20000,'queryType':'XICofFile_mf'}
-	url = 'https://metatlas.nersc.gov/api/run'
-	r = client.get(url,params=payload)
-	data = np.asarray(json.loads(r.content))
-	return data
-	# for myFile in files_I_want:
-	#     x1 = data[:,0][(data[:,2]==myFile)]
-	#     y1 = data[:,1][(data[:,2]==myFile)]
-	#     idx = np.argsort(x1)
-	#     plt.plot(x1[idx],y1[idx])
-	# plt.xlabel('Time (min)')
-	# plt.ylabel('TIC Intensity (au)')
+    payload = {'L':1,'P':polarity,'arrayname':myArray,'fileidlist':myList,
+              'max_mz':mzMax,'min_mz':mzMin,
+              'min_rt':rtMin,'max_rt':rtMax,
+              'nsteps':20000,'queryType':'XICofFile_mf'}
+    url = 'https://metatlas.nersc.gov/api/run'
+    r = client.get(url,params=payload)
+    if r.content:
+        data = np.asarray(json.loads(r.content))
+        return data
+    else:
+        return []
+    # for myFile in files_I_want:
+    #     x1 = data[:,0][(data[:,2]==myFile)]
+    #     y1 = data[:,1][(data[:,2]==myFile)]
+    #     idx = np.argsort(x1)
+    #     plt.plot(x1[idx],y1[idx])
+    # plt.xlabel('Time (min)')
+    # plt.ylabel('TIC Intensity (au)')
 
 def getEICForCompound(compound,myArray,runId,rtTol,client,polarity):
     #polarity is 1 for pos and 0 for neg
-	mz = float(compound[u'mz'])
-	mzTol = float(compound[u'mz_threshold'])
-	mzMin = mz - mz*mzTol/1.0e6
-	mzMax = mz + mz*mzTol/1.0e6
-	rtMin = float(compound[u'rt_min'])
-	rtMax = float(compound[u'rt_max'])
-	rtPeak = float(compound[u'rt_peak'])
-	payload = {'L':1,'P':polarity,'arrayname':myArray,'fileid':runId,
-	'max_mz':mzMax,'min_mz':mzMin,
-	'nsteps':10000,'queryType':'XICofFile'}
-	url = 'https://metatlas.nersc.gov/api/run'
-	r = client.get(url,params=payload)
-	data = np.asarray(json.loads(r.content))
-	xdata    = data[abs(data[:,0]-rtPeak)<rtTol,0]
-	ydata    = data[abs(data[:,0]-rtPeak)<rtTol,1]
-	peakArea = data[(data[:,0]>rtMin) & (data[:,0]<rtMax),1]
-	if len(peakArea)>0:
-		peakArea = sum(peakArea)
-	else:
-		peakArea = 0
-	if len(xdata)>0:
-		iMin = min(ydata)
-		ydata = ydata - iMin
-		iMax = max(ydata) + iMin
-		ydata = ydata / iMax
-	else:
-		iMax = 0
-	return {'eic':data,'xdata':xdata,'ydata':ydata,'name':compound[u'name'],'iMax':iMax,'peakArea':peakArea}
+    mz = float(compound[u'mz'])
+    mzTol = float(compound[u'mz_threshold'])
+    mzMin = mz - mz*mzTol/1.0e6
+    mzMax = mz + mz*mzTol/1.0e6
+    rtMin = float(compound[u'rt_min'])
+    rtMax = float(compound[u'rt_max'])
+    rtPeak = float(compound[u'rt_peak'])
+    payload = {'L':1,'P':polarity,'arrayname':myArray,'fileid':runId,
+    'max_mz':mzMax,'min_mz':mzMin,
+    'nsteps':10000,'queryType':'XICofFile'}
+    url = 'https://metatlas.nersc.gov/api/run'
+    r = client.get(url,params=payload)
+    data = np.asarray(json.loads(r.content))
+    xdata    = data[abs(data[:,0]-rtPeak)<rtTol,0]
+    ydata    = data[abs(data[:,0]-rtPeak)<rtTol,1]
+    peakArea = data[(data[:,0]>rtMin) & (data[:,0]<rtMax),1]
+    if len(peakArea)>0:
+        peakArea = sum(peakArea)
+    else:
+        peakArea = 0
+    if len(xdata)>0:
+        iMin = min(ydata)
+        ydata = ydata - iMin
+        iMax = max(ydata) + iMin
+        ydata = ydata / iMax
+    else:
+        iMax = 0
+    return {'eic':data,'xdata':xdata,'ydata':ydata,'name':compound[u'name'],'iMax':iMax,'peakArea':peakArea}
 
 def createChromatogramPlots(data,compound,fitResult,ax):
-	ax.plot(data['xdata'],data['ydata']*data['iMax'],'k-',data['xdata'], fitfunc(fitResult, data['xdata'])*data['iMax'],'r-',linewidth=2.0)
-	ax.axvline(float(compound[u'rt_min']),linewidth=2, color='k') #original rtMin
-	ax.axvline(float(compound[u'rt_max']),linewidth=2, color='k') #original rtMax
-	#     ax.axvline(x=compound[u'rt_peak'],linewidth=2, color='b') #original rtPeak
-	ax.axvline(x=fitResult[1],linewidth=2, color='r') #new rtPeak
-	ax.axvspan(fitResult[1]-fitResult[3]*2, fitResult[1]+fitResult[2]*2, facecolor='c', alpha=0.5) #new rtBounds
-	ax.set_xlabel('Time (min)')
-	ax.set_ylabel('Intensity (au)')
-	ax.set_title(compound[u'name'])
+    ax.plot(data['xdata'],data['ydata']*data['iMax'],'k-',data['xdata'], fitfunc(fitResult, data['xdata'])*data['iMax'],'r-',linewidth=2.0)
+    ax.axvline(float(compound[u'rt_min']),linewidth=2, color='k') #original rtMin
+    ax.axvline(float(compound[u'rt_max']),linewidth=2, color='k') #original rtMax
+    #     ax.axvline(x=compound[u'rt_peak'],linewidth=2, color='b') #original rtPeak
+    ax.axvline(x=fitResult[1],linewidth=2, color='r') #new rtPeak
+    ax.axvspan(fitResult[1]-fitResult[3]*2, fitResult[1]+fitResult[2]*2, facecolor='c', alpha=0.5) #new rtBounds
+    ax.set_xlabel('Time (min)')
+    ax.set_ylabel('Intensity (au)')
+    ax.set_title(compound[u'name'])
 
 def createChromatogramPlots_dataOnly(data,compound,ax):
-	ax.plot(data['xdata'],data['ydata']*data['iMax'],'k-',linewidth=2.0)
-	ax.axvline(float(compound[u'rt_min']),linewidth=2, color='r',alpha=0.5) #original rtMin
-	ax.axvline(float(compound[u'rt_max']),linewidth=2, color='r',alpha=0.5) #original rtMax
-	ax.axvline(float(compound[u'rt_peak']),linewidth=2, color='g',alpha=0.5) #original rtPeak
-	#     ax.axvline(x=compound[u'rt_peak'],linewidth=2, color='b') #original rtPeak
-	# ax.axvline(x=fitResult[1],linewidth=2, color='r') #new rtPeak
-	# ax.axvspan(fitResult[1]-fitResult[3]*2, fitResult[1]+fitResult[2]*2, facecolor='c', alpha=0.5) #new rtBounds
-	ax.set_xlabel('Time (min)')
-	ax.set_ylabel('Intensity (au)')
-	ax.set_title(compound[u'name'])
+    ax.plot(data['xdata'],data['ydata']*data['iMax'],'k-',linewidth=2.0)
+    ax.axvline(float(compound[u'rt_min']),linewidth=2, color='r',alpha=0.75) #original rtMin
+    ax.axvline(float(compound[u'rt_max']),linewidth=2, color='r',alpha=0.75) #original rtMax
+    ax.axvline(float(compound[u'rt_peak']),linewidth=2, color='g',alpha=0.75) #original rtPeak
+    #     ax.axvline(x=compound[u'rt_peak'],linewidth=2, color='b') #original rtPeak
+    # ax.axvline(x=fitResult[1],linewidth=2, color='r') #new rtPeak
+    # ax.axvspan(fitResult[1]-fitResult[3]*2, fitResult[1]+fitResult[2]*2, facecolor='c', alpha=0.5) #new rtBounds
+    ax.set_xlabel('Time (min)')
+    ax.set_ylabel('Intensity (au)')
+    ax.set_title(compound[u'name'])
 
 def fitACompound(compound,data):
-	rtPeak = float(compound[u'rt_peak'])
-	rtMin = float(compound[u'rt_min'])
-	rtMax = float(compound[u'rt_max'])
-	init  = [1.0, rtPeak, 0.1,0.1]
-	out   = leastsq( errfunc, init, args=(data['xdata'], data['ydata'], rtPeak, rtMin, rtMax))
-	fitResult = out[0]
-	fitResult[2] = abs(fitResult[2])
-	fitResult[3] = abs(fitResult[3])
-	return fitResult
+    rtPeak = float(compound[u'rt_peak'])
+    rtMin = float(compound[u'rt_min'])
+    rtMax = float(compound[u'rt_max'])
+    init  = [1.0, rtPeak, 0.1,0.1]
+    out   = leastsq( errfunc, init, args=(data['xdata'], data['ydata'], rtPeak, rtMin, rtMax))
+    fitResult = out[0]
+    fitResult[2] = abs(fitResult[2])
+    fitResult[3] = abs(fitResult[3])
+    return fitResult
 
 
 def fitfunc(p,x):
-	a = np.zeros(x.shape)
-	idx1 = x>=p[1]
-	if len(idx1)>0:
-		a[idx1]=p[0]*np.exp(-0.5*((x[idx1]-p[1])/p[2])**2)
-	idx2 = x<p[1]
-	if len(idx2)>0:
-		a[idx2]=p[0]*np.exp(-0.5*((x[idx2]-p[1])/p[3])**2)
-	return a
+    a = np.zeros(x.shape)
+    idx1 = x>=p[1]
+    if len(idx1)>0:
+        a[idx1]=p[0]*np.exp(-0.5*((x[idx1]-p[1])/p[2])**2)
+    idx2 = x<p[1]
+    if len(idx2)>0:
+        a[idx2]=p[0]*np.exp(-0.5*((x[idx2]-p[1])/p[3])**2)
+    return a
 
 def errfunc(p,x,y,rtPeak, rtMin, rtMax):
-	if (abs(p[2]) > 1.5) or (abs(p[3]) > 1.5) or (abs(p[2]) < 0.001) or (abs(p[3]) < 0.001) or (p[1] > rtMax) or (p[1] < rtMin):
-		return 1e100
-	else:
-		# return (y-fitfunc(p,x))**2
-		# idx = x > rtMin and x < rtMax
-		return np.multiply((y-fitfunc(p,x))**2,np.exp(-0.5*((x-rtPeak)/0.021)**2))
+    if (abs(p[2]) > 1.5) or (abs(p[3]) > 1.5) or (abs(p[2]) < 0.001) or (abs(p[3]) < 0.001) or (p[1] > rtMax) or (p[1] < rtMin):
+        return 1e100
+    else:
+        # return (y-fitfunc(p,x))**2
+        # idx = x > rtMin and x < rtMax
+        return np.multiply((y-fitfunc(p,x))**2,np.exp(-0.5*((x-rtPeak)/0.021)**2))
 
 #!/usr/bin/env python
 
@@ -228,8 +233,8 @@ def sliding_window_minimum(k, li):
     Each yield takes amortized O(1) time, and overall the generator takes O(k)
     space.
     __author__ = "Keegan Carruthers-Smith"
-	__email__ = "keegan.csmith@gmail.com"
-	__license__ = "MIT"
+    __email__ = "keegan.csmith@gmail.com"
+    __license__ = "MIT"
     '''
 
     window = deque()
@@ -269,7 +274,7 @@ def peakdet(v, delta, x = None):
     % This function is released to the public domain; Any use is allowed.
     
     """
-	
+    
     import sys
     from numpy import NaN, Inf, arange, isscalar, asarray, array
     maxtab = []
@@ -349,53 +354,53 @@ def splitFileListAcrossTwoDimensions(myFiles):
 def groupFilesAcrossTwoDimensions(fileInfo):
 # This block is an example to teach people how to use regular expressions to put files into groups according to their filename
 # by naming your files in a consistent manner, it can make analysis of N-way comparisons much quicker
-	import re
-	fileInfo['date']=[]
-	fileInfo['polarity']=[]
-	fileInfo['conc']=[] #this is the concentration of material
-	fileInfo['temp']=[] #this is the temperature of the inubation
-	fileInfo['group']=[] #this is a unique class of time by group
+    import re
+    fileInfo['date']=[]
+    fileInfo['polarity']=[]
+    fileInfo['conc']=[] #this is the concentration of material
+    fileInfo['temp']=[] #this is the temperature of the inubation
+    fileInfo['group']=[] #this is a unique class of time by group
 
-	for file in fileInfo['name']:
-	    oldName = file
-	    file = file[:-5]
-	    file = re.sub('blank\d','blank_0',file)
-	    file = re.sub('RT','23',file) #substitute the room temperature with 23 for consistency with naming
-	    fileInfo['polarity'].append(file[-3:])
-	    file = file[:-4]
-	    fileInfo['date'].append(file[:6])
-	    file = file[7:]
-	    temperature = re.findall(('_[0-9]+$'),file)[0]
-	    fileInfo['temp'].append(temperature.replace('_',''))
-	    file = re.sub(temperature+'$','',file)
-	    file = file[:-2] # strip off the _replicate
-	    file = file.replace('_','.')
-	    file = file.replace('bla','blank')
-	    fileInfo['conc'].append(file)
-	    fileInfo['group'].append(fileInfo['conc'][-1]+'@'+fileInfo['temp'][-1])
+    for file in fileInfo['name']:
+        oldName = file
+        file = file[:-5]
+        file = re.sub('blank\d','blank_0',file)
+        file = re.sub('RT','23',file) #substitute the room temperature with 23 for consistency with naming
+        fileInfo['polarity'].append(file[-3:])
+        file = file[:-4]
+        fileInfo['date'].append(file[:6])
+        file = file[7:]
+        temperature = re.findall(('_[0-9]+$'),file)[0]
+        fileInfo['temp'].append(temperature.replace('_',''))
+        file = re.sub(temperature+'$','',file)
+        file = file[:-2] # strip off the _replicate
+        file = file.replace('_','.')
+        file = file.replace('bla','blank')
+        fileInfo['conc'].append(file)
+        fileInfo['group'].append(fileInfo['conc'][-1]+'@'+fileInfo['temp'][-1])
 
-	fileInfo['pos_groups']={}
-	myGroups = np.unique(fileInfo['group'])
-	# # print fileInfo['group']
-	for group in myGroups:
-	    indices = [i for i, elem in enumerate(fileInfo['group']) if group == elem]
-	    fileInfo['pos_groups'][group] = []
-	    for i in indices:
-	        if fileInfo['polarity'][i] == 'pos':
-	            fileInfo['pos_groups'][group].append(fileInfo['fid'][i])
-	    # print fileInfo['pos_groups'][group]
-	# print fileInfo['pos_groups'].keys()
+    fileInfo['pos_groups']={}
+    myGroups = np.unique(fileInfo['group'])
+    # # print fileInfo['group']
+    for group in myGroups:
+        indices = [i for i, elem in enumerate(fileInfo['group']) if group == elem]
+        fileInfo['pos_groups'][group] = []
+        for i in indices:
+            if fileInfo['polarity'][i] == 'pos':
+                fileInfo['pos_groups'][group].append(fileInfo['fid'][i])
+        # print fileInfo['pos_groups'][group]
+    # print fileInfo['pos_groups'].keys()
 
-	fileInfo['neg_groups']={}
-	myGroups = np.unique(fileInfo['group'])
-	# # print fileInfo['group']
-	for group in myGroups:
-	    indices = [i for i, elem in enumerate(fileInfo['group']) if group == elem]
-	    fileInfo['neg_groups'][group] = []
-	    for i in indices:
-	        if fileInfo['polarity'][i] == 'neg':
-	            fileInfo['neg_groups'][group].append(fileInfo['fid'][i])
-	    # print group
-	    # print fileInfo['neg_groups'][group]
-	# print fileInfo['neg_groups'].keys()
-	return fileInfo
+    fileInfo['neg_groups']={}
+    myGroups = np.unique(fileInfo['group'])
+    # # print fileInfo['group']
+    for group in myGroups:
+        indices = [i for i, elem in enumerate(fileInfo['group']) if group == elem]
+        fileInfo['neg_groups'][group] = []
+        for i in indices:
+            if fileInfo['polarity'][i] == 'neg':
+                fileInfo['neg_groups'][group].append(fileInfo['fid'][i])
+        # print group
+        # print fileInfo['neg_groups'][group]
+    # print fileInfo['neg_groups'].keys()
+    return fileInfo
