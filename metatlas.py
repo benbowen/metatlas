@@ -182,8 +182,8 @@ def createChromatogramPlots_dataOnly(data,compound,ax):
     #     ax.axvline(x=compound[u'rt_peak'],linewidth=2, color='b') #original rtPeak
     # ax.axvline(x=fitResult[1],linewidth=2, color='r') #new rtPeak
     # ax.axvspan(fitResult[1]-fitResult[3]*2, fitResult[1]+fitResult[2]*2, facecolor='c', alpha=0.5) #new rtBounds
-    ax.set_xlabel('Time (min)')
-    ax.set_ylabel('Intensity (au)')
+    ax.set_xlabel('Time (min)',weight='bold')
+    ax.set_ylabel('Intensity (au)',weight='bold')
     ax.set_title(compound[u'name'])
 
 def fitACompound(compound,data):
@@ -404,3 +404,4 @@ def groupFilesAcrossTwoDimensions(fileInfo):
         # print fileInfo['neg_groups'][group]
     # print fileInfo['neg_groups'].keys()
     return fileInfo
+
