@@ -2,9 +2,34 @@ from matplotlib import pyplot as plt
 import requests, json
 import numpy as np
 import os
-import metatlas
+# import metatlas
 from scipy.optimize import leastsq
 from math import exp
+import getpass
+
+def authenticateUser(client,username):
+    password = getpass.getpass()
+    authURL = 'https://metatlas.nersc.gov/client/login/'
+    # Retrieve the CSRF token first
+    client.get(authURL)  # sets cookie
+    csrftoken = client.cookies['csrftoken']
+    login_data = dict(username=username, password=password, csrfmiddlewaretoken=csrftoken, next='/')
+    r = client.post(authURL, data=login_data, headers=dict(Referer=authURL))
+    return client
+# def authenticateUser(userFile):
+#     authURL = 'https://metatlas.nersc.gov/client/login/'
+#     file = open(userFile, 'r')
+#     userID = file.readline()[:-1]
+#     userPassword = file.readline()[:-1]
+#     file.close()
+
+#     client = requests.Session()
+#     # Retrieve the CSRF token first
+#     client.get(authURL)  # sets cookie
+#     csrftoken = client.cookies['csrftoken']
+#     login_data = dict(username=userID, password=userPassword, csrfmiddlewaretoken=csrftoken, next='/')
+#     r = client.post(authURL, data=login_data, headers=dict(Referer=authURL))
+#     return client
 
 def export_peakData_to_spreadsheet(filename,export_fileIds,fileInfo,data,dictData):
     import csv
@@ -63,20 +88,7 @@ def listMyExperiments(client):
     experiments = json.loads(r.content)
     return experiments
 
-def authenticateUser(userFile):
-    authURL = 'https://metatlas.nersc.gov/client/login/'
-    file = open(userFile, 'r')
-    userID = file.readline()[:-1]
-    userPassword = file.readline()[:-1]
-    file.close()
 
-    client = requests.Session()
-    # Retrieve the CSRF token first
-    client.get(authURL)  # sets cookie
-    csrftoken = client.cookies['csrftoken']
-    login_data = dict(username=userID, password=userPassword, csrfmiddlewaretoken=csrftoken, next='/')
-    r = client.post(authURL, data=login_data, headers=dict(Referer=authURL))
-    return client
 
 def getEICForCompounds_oneLighter(compound,myArray,files_I_want,rtTol,client,polarity):
     if isinstance(files_I_want,int):
@@ -214,7 +226,7 @@ def errfunc(p,x,y,rtPeak, rtMin, rtMax):
     else:
         # return (y-fitfunc(p,x))**2
         # idx = x > rtMin and x < rtMax
-        return np.multiply((y-fitfunc(p,x))**2,np.exp(-0.5*((x-rtPeak)/0.021)**2))
+        return np.multiply((y-fitfunc(p,x))**2,np.exp(-0.5*((x-rtPeak)/0.075)**2))
 
 #!/usr/bin/env python
 
