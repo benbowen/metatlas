@@ -1,4 +1,5 @@
 # IGNORE PYTHON CHECKPOINTS
+*.tab
 *.ipynb_checkpoints
 *.png
 *.pdf
